@@ -1,0 +1,138 @@
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Google Sans Light'), local('GoogleSans-Light'), url(https://fonts.gstatic.com/s/googlesans/v14/4UaGrENHsxJL97lnOr9-AJ5W_pxX3gA.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Google Sans Regular'), local('GoogleSans-Regular'), url(https://fonts.gstatic.com/s/googlesans/v14/4UaGrENHsxJL97lnOr9-AJ5W_pxX3gA.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 500;
+  src: local('Google Sans Medium'), local('GoogleSans-Medium'), url(https://fonts.gstatic.com/s/googlesans/v14/4UabrENHsxJL97lnOr9-AKmq_o_f7gF9.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Google Sans SemiBold'), local('GoogleSans-SemiBold'), url(https://fonts.gstatic.com/s/googlesans/v14/4UabrENHsxJL97lnOr9-ALms_o_f7gF9.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Google Sans Bold'), local('GoogleSans-Bold'), url(https://fonts.gstatic.com/s/googlesans/v14/4UabrENHsxJL97lnOr9-ALms_o_f7gF9.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 800;
+  src: local('Google Sans ExtraBold'), local('GoogleSans-ExtraBold'), url(https://fonts.gstatic.com/s/googlesans/v14/4UabrENHsxJL97lnOr9-ALms_o_f7gF9.woff2) format('woff2');
+}
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Google Sans", "Plus Jakarta Sans", "Lexend", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-[#0b2545]: #0B2545;
+  --color-[#ee6c4d]: #EE6C4D;
+  --color-[#e8f5e9]: #E8F5E9;
+  --color-[#d90429]: #D90429;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #F8F9FA;
+  color: #333333;
+  scroll-behavior: smooth;
+}
+
+/* Clean Minimalism Theme Helper Styles */
+.navy-bg {
+  background-color: #0B2545;
+}
+
+.navy-text {
+  color: #0B2545;
+}
+
+.orange-accent {
+  border-color: #EE6C4D;
+}
+
+.orange-text {
+  color: #EE6C4D;
+}
+
+.green-bg {
+  background-color: #E8F5E9;
+}
+
+.red-bg {
+  background-color: #D90429;
+}
+
+.shadow-soft {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.input-base {
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  width: 100%;
+  background-color: #FFFFFF;
+  color: #333333;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: all 0.2s ease-in-out;
+  outline: none;
+}
+
+.input-base:focus {
+  outline: none;
+  border-color: #EE6C4D;
+  box-shadow: 0 0 0 3px rgba(238, 108, 77, 0.15);
+}
+
+.tab-btn {
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-btn.active {
+  border-bottom-color: #EE6C4D;
+  color: #EE6C4D;
+  font-weight: 600;
+}
+
+/* Custom scrollbar for an elegant feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}

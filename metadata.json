@@ -1,0 +1,6 @@
+{
+  "name": "Nhat ky tu van hoc duong",
+  "description": "School counseling and social work diary with automatic Word (.docx) document export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
