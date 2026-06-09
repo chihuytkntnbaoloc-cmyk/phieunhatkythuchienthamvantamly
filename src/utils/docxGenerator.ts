@@ -1,3 +1,5 @@
+import PizZip from "pizzip";
+
 /**
  * Programmatically generates a valid Microsoft Word OpenXML (.docx) template.
  * This ensures the app can work instantly without the user needing to find/upload a template.
@@ -15,11 +17,6 @@ export function escapeXml(str: string): string {
 }
 
 export function generateDefaultDocxBlob(): Blob {
-  // @ts-ignore
-  if (typeof window === "undefined" || !window.PizZip) {
-    throw new Error("PizZip is not loaded on window.");
-  }
-
   // Create XML elements for the standard Vietnamese layout
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -644,8 +641,7 @@ export function generateDefaultDocxBlob(): Blob {
 </w:document>`;
 
   // Base64 or direct binary write into PizZip
-  // @ts-ignore
-  const zip = new window.PizZip();
+  const zip = new PizZip();
   zip.file("[Content_Types].xml", contentTypesXml);
   zip.file("_rels/.rels", relsXml);
   zip.file("word/document.xml", documentXml);
