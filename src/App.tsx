@@ -9,7 +9,6 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import * as XLSX from "xlsx";
 import { INITIAL_DIARY_STATE, type CounselingDiary } from "./types";
-import { generateDefaultDocxBlob } from "./utils/docxGenerator";
 
 // Helper functions for Excel parsing
 function parseExcelDate(val: any): string {
@@ -293,10 +292,15 @@ export default function App() {
     }
   };
 
-  // Downloads programmatically compiled Word template
-  const downloadSampleTemplateFile = () => {
+  // Downloads local static Word template file
+  const downloadSampleTemplateFile = async () => {
     try {
-      const blob = generateDefaultDocxBlob();
+      showStatus("Đang tải tệp mẫu chuẩn từ hệ thống...", "info");
+      const response = await fetch("/template.docx");
+      if (!response.ok) {
+        throw new Error("Không thể tải tệp template.docx từ server");
+      }
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -310,55 +314,102 @@ export default function App() {
         "success",
       );
     } catch (err: any) {
-      showStatus("Lỗi khi sinh tệp mẫu: " + err.message, "error");
+      showStatus("Lỗi khi tải tệp mẫu: " + err.message, "error");
     }
   };
-
+ 
   // Generates complete data-filled file and triggers browser download
   const handleExportWord = async () => {
     try {
       showStatus("Đang biên dịch và xuất tài liệu...", "info");
-
+ 
       let docxTemplateArrayBuffer: ArrayBuffer;
-
+ 
       if (customTemplateArrayBuffer) {
         docxTemplateArrayBuffer = customTemplateArrayBuffer;
       } else {
-        // Fallback to programmatic template blob
-        const blob = generateDefaultDocxBlob();
-        docxTemplateArrayBuffer = await blob.arrayBuffer();
+        // Fetch static template file from public folder
+        const response = await fetch("/template.docx");
+        if (!response.ok) {
+          throw new Error("Không thể tải tệp mẫu chuẩn /template.docx");
+        }
+        docxTemplateArrayBuffer = await response.arrayBuffer();
       }
-
+ 
       const zip = new PizZip(docxTemplateArrayBuffer);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
       });
-
-      // Prepare mapped variables from state
-      // Ensure empty strings are handled cleanly
-      const valuesToRender: Record<string, string> = {};
-      Object.keys(diary).forEach((key) => {
-        const item = diary[key as keyof CounselingDiary];
-        valuesToRender[key] = item || "";
-      });
-
+ 
+      // Strict mapping of React Form State to template placeholders
+      const valuesToRender = {
+        // Section 1: Thông tin người học
+        ho_ten: diary.ho_ten || "",
+        ngay_sinh: diary.ngay_sinh || "",
+        gt_nam: diary.gt_nam || "",
+        gt_nu: diary.gt_nu || "",
+        gt_kb: diary.gt_kb || "",
+        ho_ten_cha: diary.ho_ten_cha || "",
+        tuoi_cha: diary.tuoi_cha || "",
+        nghe_nghiep_cha: diary.nghe_nghiep_cha || "",
+        ho_ten_me: diary.ho_ten_me || "",
+        tuoi_me: diary.tuoi_me || "",
+        nghe_nghiep_me: diary.nghe_nghiep_me || "",
+        hoan_canh_gia_dinh: diary.hoan_canh_gia_dinh || "",
+        nguoi_cham_soc: diary.nguoi_cham_soc || "",
+ 
+        // Section 2: Trọng tâm/Mức độ ưu tiên
+        ut_hoc_tap: diary.ut_hoc_tap || "",
+        ut_gioi_quan_he: diary.ut_quan_he_xa_hoi || "",
+        ut_tam_ly: diary.ut_tam_ly || "",
+        ut_ky_nang_song: diary.ut_ky_nang_song || "",
+        ut_huong_nghiep: diary.ut_huong_nghiep || "",
+        ut_chinh_sach: diary.ut_chinh_sach || "",
+        ut_dich_vu: diary.ut_dich_vu_ctxh || "",
+ 
+        // Section 3: Hình thức tư vấn
+        tt_dia_diem: diary.tt_dia_diem || "",
+        tt_thoi_gian: diary.tt_thoi_gian || "",
+        tt_thoi_luong: diary.tt_thoi_luong || "",
+        tl_kenh: diary.on_kenh || "",
+        tl_thoi_gian: diary.on_thoi_gian || "",
+        tl_thoi_luong: diary.on_thoi_luong || "",
+ 
+        // Section 4-8: Nhật ký tự luận
+        kho_khan_nhu_cau: diary.muc_4_kho_khan_nhu_cau || "",
+        tom_tat_thong_tin: diary.muc_5_tom_tat_thong_tin || "",
+        nhan_dinh_so_bo: diary.muc_6_nhan_dinh_so_bo || "",
+        cac_hinh_thuc_da_ap_dung: diary.muc_7_hinh_thuc_da_ap_dung || "",
+        danh_gia_hieu_qua: diary.muc_8_danh_gia_hieu_qua || "",
+ 
+        // Section 9: Kết thúc hỗ trợ
+        kt_dung_hoat_dong: diary.kt_dung_theo_doi || "",
+        kt_xay_dung_ke_hoach: diary.kt_len_ke_hoach || "",
+        kt_chuyen_gui_den: diary.kt_thuc_hien_chuyen || "",
+        kt_chuyen_gui_noi: diary.kt_chuyen_gui_noi || "",
+ 
+        // Section 10: Tiếp tục & Chữ ký
+        lich_hen_tiep_theo: diary.lich_hen_tiep_theo || "",
+        ten_nguoi_thuc_hien: diary.ten_nguoi_thuc_hien || "",
+      };
+ 
       // Execute render
       doc.render(valuesToRender);
-
+ 
       // Extract generated model file blob
       const out = doc.getZip().generate({
         type: "blob",
         mimeType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
-
+ 
       // Output filename safe string
       const sanitizedName = diary.ho_ten
         ? diary.ho_ten.trim().replace(/\s+/g, "_")
         : "Hoc_Sinh";
       const filename = `Nhat_ky_Tu_van_Hoc_duong_${sanitizedName}.docx`;
-
+ 
       // Trigger standard browser download
       const url = window.URL.createObjectURL(out);
       const link = document.createElement("a");
@@ -368,7 +419,7 @@ export default function App() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
+ 
       showStatus(
         "Chúc mừng! Đã xuất và tải tài liệu nhật ký thành công (.docx)!",
         "success",
