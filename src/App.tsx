@@ -7,8 +7,57 @@ import React, { useState, useRef, type ChangeEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import * as XLSX from "xlsx";
 import { INITIAL_DIARY_STATE, type CounselingDiary } from "./types";
 import { generateDefaultDocxBlob } from "./utils/docxGenerator";
+
+// Helper functions for Excel parsing
+function parseExcelDate(val: any): string {
+  if (!val) return "";
+
+  if (val instanceof Date) {
+    const day = String(val.getUTCDate()).padStart(2, "0");
+    const month = String(val.getUTCMonth() + 1).padStart(2, "0");
+    const year = val.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  if (typeof val === "number") {
+    const epoch = new Date(Date.UTC(1899, 11, 30));
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const date = new Date(epoch.getTime() + val * msPerDay);
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const year = date.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  const str = String(val).trim();
+  const yyyymmddRegex = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/;
+  const matchYmd = str.match(yyyymmddRegex);
+  if (matchYmd) {
+    return `${matchYmd[3].padStart(2, "0")}/${matchYmd[2].padStart(2, "0")}/${matchYmd[1]}`;
+  }
+
+  const ddmmyyyyRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/;
+  const matchDmy = str.match(ddmmyyyyRegex);
+  if (matchDmy) {
+    return `${matchDmy[1].padStart(2, "0")}/${matchDmy[2].padStart(2, "0")}/${matchDmy[3]}`;
+  }
+
+  return str;
+}
+
+function parseGender(val: any): { gt_nam: string; gt_nu: string; gt_kb: string } {
+  const str = String(val || "").trim().toLowerCase();
+  if (str === "nam" || str === "m" || str === "male" || str === "boy") {
+    return { gt_nam: "X", gt_nu: "", gt_kb: "" };
+  }
+  if (str === "nữ" || str === "nu" || str === "f" || str === "female" || str === "girl") {
+    return { gt_nam: "", gt_nu: "X", gt_kb: "" };
+  }
+  return { gt_nam: "", gt_nu: "", gt_kb: "X" };
+}
 
 export default function App() {
   const [diary, setDiary] = useState<CounselingDiary>({
@@ -112,6 +161,117 @@ export default function App() {
     reader.onerror = () => {
       showStatus("Không thể đọc tệp tin đã chọn. Vui lòng thử lại.", "error");
     };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Handle importing data from student profile Excel sheet (.xlsx)
+  const handleExcelUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (extension !== "xlsx" && extension !== "xls") {
+      showStatus(
+        "File tải lên phải đúng định dạng Excel (.xlsx hoặc .xls)",
+        "error",
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        if (!event.target || !event.target.result) {
+          throw new Error("Không thể đọc nội dung tệp");
+        }
+
+        const data = new Uint8Array(event.target.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array", cellDates: true });
+
+        // Get the first worksheet
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        // Parse sheet as 2D Array
+        const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+
+        // Extracted variables
+        let hoTen = "";
+        let ngaySinh = "";
+        let gtNam = "";
+        let gtNu = "";
+        let gtKb = "";
+        let hoTenCha = "";
+        let ngheNghiepCha = "";
+        let hoTenMe = "";
+        let ngheNghiepMe = "";
+
+        // Iterate through rows and columns to find key-value pairs
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row || !Array.isArray(row)) continue;
+
+          for (let c = 0; c < row.length; c++) {
+            const cellValue = row[c];
+            if (cellValue === undefined || cellValue === null) continue;
+
+            const normalizedLabel = String(cellValue)
+              .trim()
+              .toLowerCase()
+              .replace(/:$/, "")
+              .trim();
+
+            const nextCellValue = row[c + 1];
+
+            if (normalizedLabel === "họ và tên") {
+              hoTen = String(nextCellValue || "").trim();
+            } else if (normalizedLabel === "ngày sinh") {
+              ngaySinh = parseExcelDate(nextCellValue);
+            } else if (normalizedLabel === "giới tính") {
+              const parsedGender = parseGender(nextCellValue);
+              gtNam = parsedGender.gt_nam;
+              gtNu = parsedGender.gt_nu;
+              gtKb = parsedGender.gt_kb;
+            } else if (normalizedLabel === "họ tên cha") {
+              hoTenCha = String(nextCellValue || "").trim();
+            } else if (normalizedLabel === "nghề nghiệp cha") {
+              ngheNghiepCha = String(nextCellValue || "").trim();
+            } else if (normalizedLabel === "họ tên mẹ") {
+              hoTenMe = String(nextCellValue || "").trim();
+            } else if (normalizedLabel === "nghề nghiệp mẹ") {
+              ngheNghiepMe = String(nextCellValue || "").trim();
+            }
+          }
+        }
+
+        // Apply to state (only modify fields that exist in template and were found)
+        setDiary((prev) => ({
+          ...prev,
+          ho_ten: hoTen || prev.ho_ten,
+          ngay_sinh: ngaySinh || prev.ngay_sinh,
+          // Update gender if found
+          ...(gtNam || gtNu || gtKb ? { gt_nam: gtNam, gt_nu: gtNu, gt_kb: gtKb } : {}),
+          ho_ten_cha: hoTenCha || prev.ho_ten_cha,
+          nghe_nghiep_cha: ngheNghiepCha || prev.nghe_nghiep_cha,
+          ho_ten_me: hoTenMe || prev.ho_ten_me,
+          nghe_nghiep_me: ngheNghiepMe || prev.nghe_nghiep_me,
+        }));
+
+        showStatus(
+          `Đã nhập thành công hồ sơ học sinh: ${hoTen || "Ẩn danh"}`,
+          "success",
+        );
+      } catch (err: any) {
+        console.error(err);
+        showStatus("Lỗi khi đọc file Excel: " + err.message, "error");
+      }
+    };
+
+    reader.onerror = () => {
+      showStatus("Lỗi đọc file. Vui lòng thử lại.", "error");
+    };
+
     reader.readAsArrayBuffer(file);
   };
 
@@ -368,6 +528,31 @@ export default function App() {
 
         {/* Content Panel Frame (Contains Form blocks scrollable smoothly) */}
         <div className="flex-1 w-full space-y-8">
+          {/* EXCEL IMPORT UTILITY PANEL */}
+          <div className="bg-gradient-to-r from-[#0B2545]/5 via-[#EE6C4D]/5 to-transparent rounded-2xl border border-dashed border-[#0B2545]/20 p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-soft hover:shadow-md transition duration-300">
+            <div className="space-y-1 text-center md:text-left">
+              <h4 className="text-xs font-bold text-[#0B2545] uppercase tracking-wider flex items-center justify-center md:justify-start gap-2">
+                <span>⚡ Nhập liệu nhanh từ Excel</span>
+                <span className="bg-[#EE6C4D] text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-normal">Mới</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Tải lên hồ sơ học sinh (.xlsx) để tự động điền các thông tin cơ bản của người học và cha mẹ.
+              </p>
+            </div>
+            
+            <label className="w-full md:w-auto relative cursor-pointer group shrink-0">
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleExcelUpload}
+                className="hidden"
+              />
+              <div className="w-full select-none text-center bg-[#0B2545] hover:bg-[#0B2545]/90 text-white py-2.5 px-5 rounded-xl text-xs font-extrabold tracking-wider transition-all transform active:scale-95 shadow-soft flex items-center justify-center gap-2 border border-transparent">
+                📊 Import từ Excel (.xlsx)
+              </div>
+            </label>
+          </div>
+
           {/* BLOCK 1: Thông tin người học */}
           <div
             id="khoi-1"
